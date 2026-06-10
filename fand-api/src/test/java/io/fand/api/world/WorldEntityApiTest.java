@@ -96,6 +96,21 @@ final class WorldEntityApiTest {
     }
 
     @Test
+    void typedRayTraceDoesNotDiscardFartherMatchingEntityBehindNearerDifferentType() {
+        var cow = new TestEntity(COW, 1.0, 64.0, 0.0, 0.9, 1.4);
+        var zombie = new TestEntity(ZOMBIE, 3.0, 64.0, 0.0, 0.6, 1.8);
+        var world = new RayTraceWorld(List.of(cow, zombie));
+
+        var hit = world.rayTraceEntity(world.at(0, 64, 0), new Vector3(1, 0, 0), 4.0, ZOMBIE);
+        var asyncHit = world.rayTraceEntityAsync(world.at(0, 64, 0), new Vector3(1, 0, 0), 4.0, ZOMBIE).join();
+
+        assertThat(hit).isPresent();
+        assertThat(hit.orElseThrow().entity()).isSameAs(zombie);
+        assertThat(asyncHit).isPresent();
+        assertThat(asyncHit.orElseThrow().entity()).isSameAs(zombie);
+    }
+
+    @Test
     void defaultWorldToolsRemainOptInForImplementations() {
         var world = new TestWorld(List.of());
 
@@ -321,7 +336,7 @@ final class WorldEntityApiTest {
         }
     }
 
-    private static final class TestWorld implements World {
+    private static class TestWorld implements World {
 
         private final List<Entity> entities;
         private final boolean supportsDrop;
@@ -460,6 +475,24 @@ final class WorldEntityApiTest {
                 return CompletableFuture.completedFuture(Optional.empty());
             }
             return World.super.dropItem(location, item, options);
+        }
+    }
+
+    private static final class RayTraceWorld extends TestWorld {
+
+        private RayTraceWorld(List<Entity> entities) {
+            super(entities);
+        }
+
+        @Override
+        public Optional<EntityRayTraceResult> rayTraceEntity(Location start, Vector3 direction, double maxDistance) {
+            return entities().stream()
+                    .filter(entity -> entity.location().x() >= start.x())
+                    .min(java.util.Comparator.comparingDouble(entity -> entity.location().x() - start.x()))
+                    .map(entity -> new EntityRayTraceResult(
+                            entity,
+                            start.offset(entity.location().x() - start.x(), 0.0, 0.0),
+                            entity.location().x() - start.x()));
         }
     }
 }

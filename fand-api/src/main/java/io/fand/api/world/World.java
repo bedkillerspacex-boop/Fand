@@ -21,6 +21,7 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import net.kyori.adventure.audience.ForwardingAudience;
 import net.kyori.adventure.key.Key;
 
@@ -340,8 +341,11 @@ public interface World extends ForwardingAudience {
             EntityType type
     ) {
         java.util.Objects.requireNonNull(type, "type");
-        return rayTraceEntity(start, direction, maxDistance)
-                .filter(result -> result.entity().type().equals(type));
+        var nearest = rayTraceEntity(start, direction, maxDistance);
+        if (nearest.isEmpty() || nearest.orElseThrow().entity().type().equals(type)) {
+            return nearest;
+        }
+        return rayTraceEntitySnapshot(start, direction, maxDistance, entity -> entity.type().equals(type));
     }
 
     /**
@@ -357,7 +361,12 @@ public interface World extends ForwardingAudience {
     ) {
         java.util.Objects.requireNonNull(type, "type");
         return rayTraceEntityAsync(start, direction, maxDistance)
-                .thenApply(result -> result.filter(hit -> hit.entity().type().equals(type)));
+                .thenApply(nearest -> {
+                    if (nearest.isEmpty() || nearest.orElseThrow().entity().type().equals(type)) {
+                        return nearest;
+                    }
+                    return rayTraceEntitySnapshot(start, direction, maxDistance, entity -> entity.type().equals(type));
+                });
     }
 
     /** Convenience overload for generated vanilla entity keys. */
@@ -709,6 +718,108 @@ public interface World extends ForwardingAudience {
         double dy = a.y() - b.y();
         double dz = a.z() - b.z();
         return dx * dx + dy * dy + dz * dz;
+    }
+
+    private Optional<EntityRayTraceResult> rayTraceEntitySnapshot(
+            Location start,
+            Vector3 direction,
+            double maxDistance,
+            Predicate<Entity> filter
+    ) {
+        requireSameWorld(start, this, "start");
+        java.util.Objects.requireNonNull(direction, "direction");
+        requireNonNegativeFinite(maxDistance, "maxDistance");
+        double length = direction.length();
+        if (!Double.isFinite(length) || length == 0.0 || maxDistance == 0.0) {
+            return Optional.empty();
+        }
+        double dx = direction.x() / length;
+        double dy = direction.y() / length;
+        double dz = direction.z() / length;
+        Entity nearest = null;
+        Location nearestHit = null;
+        double nearestDistance = maxDistance;
+        for (var entity : entities()) {
+            if (!filter.test(entity)) {
+                continue;
+            }
+            var hitDistance = rayTraceEntityDistance(start, dx, dy, dz, maxDistance, entity);
+            if (hitDistance >= 0.0 && hitDistance <= nearestDistance) {
+                nearest = entity;
+                nearestDistance = hitDistance;
+                nearestHit = start.offset(dx * hitDistance, dy * hitDistance, dz * hitDistance);
+            }
+        }
+        return nearest == null ? Optional.empty() : Optional.of(new EntityRayTraceResult(nearest, nearestHit, nearestDistance));
+    }
+
+    private static double rayTraceEntityDistance(
+            Location start,
+            double dx,
+            double dy,
+            double dz,
+            double maxDistance,
+            Entity entity
+    ) {
+        var location = entity.location();
+        if (!location.world().key().equals(start.world().key())) {
+            return -1.0;
+        }
+        double halfWidth = Math.max(0.0, entity.width()) * 0.5;
+        double minX = location.x() - halfWidth;
+        double maxX = location.x() + halfWidth;
+        double minY = location.y();
+        double maxY = location.y() + Math.max(0.0, entity.height());
+        double minZ = location.z() - halfWidth;
+        double maxZ = location.z() + halfWidth;
+        double tMin = 0.0;
+        double tMax = maxDistance;
+
+        var xRange = clipRayAxis(start.x(), dx, minX, maxX, tMin, tMax);
+        if (xRange == null) {
+            return -1.0;
+        }
+        tMin = xRange.min();
+        tMax = xRange.max();
+
+        var yRange = clipRayAxis(start.y(), dy, minY, maxY, tMin, tMax);
+        if (yRange == null) {
+            return -1.0;
+        }
+        tMin = yRange.min();
+        tMax = yRange.max();
+
+        var zRange = clipRayAxis(start.z(), dz, minZ, maxZ, tMin, tMax);
+        if (zRange == null) {
+            return -1.0;
+        }
+        return zRange.min();
+    }
+
+    private static @org.jspecify.annotations.Nullable RayTraceRange clipRayAxis(
+            double start,
+            double direction,
+            double min,
+            double max,
+            double tMin,
+            double tMax
+    ) {
+        if (Math.abs(direction) < 1.0E-12) {
+            return start < min || start > max ? null : new RayTraceRange(tMin, tMax);
+        }
+        double near = (min - start) / direction;
+        double far = (max - start) / direction;
+        if (near > far) {
+            double swap = near;
+            near = far;
+            far = swap;
+        }
+        double clippedMin = Math.max(tMin, near);
+        double clippedMax = Math.min(tMax, far);
+        return clippedMin > clippedMax ? null : new RayTraceRange(clippedMin, clippedMax);
+    }
+
+    record RayTraceRange(double min, double max) {
     }
 
 }
