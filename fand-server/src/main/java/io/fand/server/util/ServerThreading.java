@@ -84,9 +84,19 @@ public final class ServerThreading {
         } catch (RejectedExecutionException failure) {
             throw serverStopping(failure);
         }
+        return joinBlocking(future);
+    }
+
+    static <T> T joinBlocking(CompletableFuture<T> future) {
         try {
             return future.join();
         } catch (CompletionException failure) {
+            if (failure.getCause() instanceof RuntimeException cause) {
+                throw cause;
+            }
+            if (failure.getCause() instanceof Error cause) {
+                throw cause;
+            }
             throw failure;
         }
     }
