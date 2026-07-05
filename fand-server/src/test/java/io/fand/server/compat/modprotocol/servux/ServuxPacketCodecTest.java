@@ -1,6 +1,7 @@
 package io.fand.server.compat.modprotocol.servux;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.netty.buffer.Unpooled;
 import java.util.UUID;
@@ -71,5 +72,23 @@ final class ServuxPacketCodecTest {
         assertThat(decoded.readVarInt()).isEqualTo(99);
         assertThat(decoded.readNbt().getStringOr("Task", "")).isEqualTo("LitematicaPaste");
         assertThat(decoded.isReadable()).isFalse();
+    }
+
+    @Test
+    void oversizedC2sSplitHeaderDoesNotPoisonPlayerSession() {
+        var player = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        var oversized = ServuxPacketCodec.buffer();
+        oversized.writeVarInt(67_108_865);
+        var splitter = new ServuxSplitter();
+
+        assertThatThrownBy(() -> splitter.receive(player, ServuxPacketCodec.bytes(oversized)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Servux payload too large");
+
+        var valid = ServuxPacketCodec.buffer();
+        valid.writeVarInt(3);
+        valid.writeBytes(new byte[] { 1, 2, 3 });
+
+        assertThat(splitter.receive(player, ServuxPacketCodec.bytes(valid))).containsExactly(1, 2, 3);
     }
 }

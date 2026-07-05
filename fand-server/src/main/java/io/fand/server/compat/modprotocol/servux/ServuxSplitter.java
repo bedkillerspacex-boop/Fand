@@ -50,6 +50,7 @@ final class ServuxSplitter {
             if (expectedSize < 0) {
                 expectedSize = source.readVarInt();
                 if (expectedSize < 0 || expectedSize > DEFAULT_MAX_RECEIVE_SIZE_C2S) {
+                    reset();
                     throw new IllegalArgumentException("Servux payload too large: " + expectedSize);
                 }
                 received = new byte[expectedSize];
@@ -59,12 +60,16 @@ final class ServuxSplitter {
             offset += length;
             if (offset >= expectedSize) {
                 var complete = received;
-                expectedSize = -1;
-                received = null;
-                offset = 0;
+                reset();
                 return complete;
             }
             return null;
+        }
+
+        private void reset() {
+            expectedSize = -1;
+            received = null;
+            offset = 0;
         }
     }
 }
