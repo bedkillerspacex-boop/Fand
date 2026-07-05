@@ -1,6 +1,7 @@
 package io.fand.server.compat.modprotocol.servux;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import io.netty.buffer.Unpooled;
 import java.util.UUID;
@@ -69,6 +70,32 @@ final class ServuxPacketCodecTest {
         var decoded = new FriendlyByteBuf(Unpooled.wrappedBuffer(complete));
 
         assertThat(decoded.readVarInt()).isEqualTo(99);
+        assertThat(decoded.readNbt().getStringOr("Task", "")).isEqualTo("LitematicaPaste");
+        assertThat(decoded.isReadable()).isFalse();
+    }
+
+    @Test
+    void c2sSplitCanRecoverAfterRejectedSizeHeader() {
+        var player = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        var splitter = new ServuxSplitter();
+        var invalid = ServuxPacketCodec.buffer();
+        invalid.writeVarInt(67_108_865);
+
+        assertThatThrownBy(() -> splitter.receive(player, ServuxPacketCodec.bytes(invalid)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Servux payload too large");
+
+        var tag = new CompoundTag();
+        tag.putString("Task", "LitematicaPaste");
+        var body = ServuxPacketCodec.writeTransactionalSplitPayload(12, tag);
+        var valid = ServuxPacketCodec.buffer();
+        valid.writeVarInt(body.length);
+        valid.writeBytes(body);
+
+        var complete = splitter.receive(player, ServuxPacketCodec.bytes(valid));
+        var decoded = new FriendlyByteBuf(Unpooled.wrappedBuffer(complete));
+
+        assertThat(decoded.readVarInt()).isEqualTo(12);
         assertThat(decoded.readNbt().getStringOr("Task", "")).isEqualTo("LitematicaPaste");
         assertThat(decoded.isReadable()).isFalse();
     }

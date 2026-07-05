@@ -27,7 +27,12 @@ final class ServuxSplitter {
     }
 
     byte[] receive(UUID player, byte[] slice) {
-        return sessions.computeIfAbsent(player, ignored -> new ReadingSession()).receive(slice);
+        try {
+            return sessions.computeIfAbsent(player, ignored -> new ReadingSession()).receive(slice);
+        } catch (RuntimeException failure) {
+            sessions.remove(player);
+            throw failure;
+        }
     }
 
     void forget(UUID player) {
