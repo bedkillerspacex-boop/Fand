@@ -27,7 +27,11 @@ public record ChunkRegion(int minX, int minZ, int maxX, int maxZ) {
         if (radius < 0) {
             throw new IllegalArgumentException("radius must be >= 0");
         }
-        return new ChunkRegion(centerX - radius, centerZ - radius, centerX + radius, centerZ + radius);
+        return new ChunkRegion(
+                Math.subtractExact(centerX, radius),
+                Math.subtractExact(centerZ, radius),
+                Math.addExact(centerX, radius),
+                Math.addExact(centerZ, radius));
     }
 
     public static ChunkRegion around(ChunkPos center, int radius) {

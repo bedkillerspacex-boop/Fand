@@ -50,6 +50,14 @@ final class ChunkApiModelsTest {
     }
 
     @Test
+    void chunkRegionAroundRejectsCoordinateOverflow() {
+        assertThatThrownBy(() -> ChunkRegion.around(Integer.MAX_VALUE, 0, 1))
+                .isInstanceOf(ArithmeticException.class);
+        assertThatThrownBy(() -> ChunkRegion.around(0, Integer.MIN_VALUE, 1))
+                .isInstanceOf(ArithmeticException.class);
+    }
+
+    @Test
     void chunkBatchOptionsValidatePositiveBudget() {
         assertThatThrownBy(() -> new ChunkBatchOptions(0, true, false))
                 .isInstanceOf(IllegalArgumentException.class);
