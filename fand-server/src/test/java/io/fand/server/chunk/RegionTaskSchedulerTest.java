@@ -76,6 +76,15 @@ final class RegionTaskSchedulerTest {
         }
     }
 
+    @Test
+    void workerIndexIsBoundedByCapturedWorkerCount() {
+        var levelId = "minecraft:overworld";
+        var chunk = chunkInWorker(levelId, 3, 4);
+
+        assertThat(RegionTaskScheduler.workerIndex(levelId, chunk, 4)).isEqualTo(3);
+        assertThat(RegionTaskScheduler.workerIndex(levelId, chunk, 1)).isZero();
+    }
+
     private static long chunkPos(int x, int z) {
         return ((long) z << 32) | (x & 0xffffffffL);
     }
@@ -96,8 +105,23 @@ final class RegionTaskSchedulerTest {
         throw new AssertionError("could not find a region mapped to a different worker");
     }
 
+    private static long chunkInWorker(Object levelId, int expectedWorker, int workerCount) {
+        for (int regionX = -16; regionX <= 16; regionX++) {
+            for (int regionZ = -16; regionZ <= 16; regionZ++) {
+                var candidate = chunkPos(
+                        regionX * RegionTaskScheduler.REGION_SIZE_CHUNKS,
+                        regionZ * RegionTaskScheduler.REGION_SIZE_CHUNKS
+                );
+                if (RegionTaskScheduler.workerIndex(levelId, candidate, workerCount) == expectedWorker) {
+                    return candidate;
+                }
+            }
+        }
+        throw new AssertionError("could not find a region mapped to worker " + expectedWorker);
+    }
+
     private static int workerIndex(Object levelId, long chunk, int workerCount) {
-        return Math.floorMod(RegionTaskScheduler.regionKey(levelId, chunk).hashCode(), workerCount);
+        return RegionTaskScheduler.workerIndex(levelId, chunk, workerCount);
     }
 
     private static void await(CountDownLatch latch) {

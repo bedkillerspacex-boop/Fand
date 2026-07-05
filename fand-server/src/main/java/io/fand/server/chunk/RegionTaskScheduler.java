@@ -28,7 +28,8 @@ final class RegionTaskScheduler implements AutoCloseable {
         if (closed.get()) {
             throw new RejectedExecutionException("region scheduler is closed");
         }
-        return workers.submit(workerIndex(levelId, packedChunk), task);
+        var currentWorkers = workers;
+        return currentWorkers.submit(workerIndex(levelId, packedChunk, currentWorkers.workers.length), task);
     }
 
     void reconfigure(int configuredThreads) {
@@ -66,10 +67,13 @@ final class RegionTaskScheduler implements AutoCloseable {
 
     // Hash the region directly to a worker without allocating a RegionKey record;
     // this mirrors RegionKey.hashCode() (Objects.hash of levelId, regionX, regionZ).
-    private int workerIndex(Object levelId, long packedChunk) {
+    static int workerIndex(Object levelId, long packedChunk, int workerCount) {
+        if (workerCount <= 0) {
+            throw new IllegalArgumentException("workerCount must be positive");
+        }
         var regionX = Math.floorDiv(chunkX(packedChunk), REGION_SIZE_CHUNKS);
         var regionZ = Math.floorDiv(chunkZ(packedChunk), REGION_SIZE_CHUNKS);
-        return Math.floorMod(Objects.hash(levelId, regionX, regionZ), workers.workers.length);
+        return Math.floorMod(Objects.hash(levelId, regionX, regionZ), workerCount);
     }
 
     private static int chunkX(long packedChunk) {
