@@ -131,7 +131,13 @@ public final class PluginChannelConfigurationTask implements ConfigurationTask {
 
     private static int negotiateVersion(DiscardedPayload payload) {
         var buffer = new FriendlyByteBuf(Unpooled.wrappedBuffer(payload.payload()));
-        int[] versions = buffer.readVarIntArray();
+        int[] versions;
+        try {
+            versions = buffer.readVarIntArray();
+        } catch (RuntimeException failure) {
+            LOGGER.debug("Client sent malformed Fand plugin channel common version payload", failure);
+            return -1;
+        }
         for (int version : versions) {
             if (version == PluginChannelAdvertiser.COMMON_PACKET_VERSION) {
                 return version;

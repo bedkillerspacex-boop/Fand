@@ -286,6 +286,23 @@ final class FandPluginMessagingTest {
         assertThat(task.tick()).isTrue();
     }
 
+    @Test
+    void pluginChannelConfigurationTaskDoesNotCrashOnMalformedCommonVersionPayload() {
+        var messaging = new FandPluginMessaging(new PacketRegistryImpl());
+        messaging.register(Key.key("jei:delete_player_item"), PluginMessageDirection.SERVERBOUND, noopHandler());
+        var packets = new ArrayList<Packet<?>>();
+        var task = messaging.pluginChannelConfigurationTask();
+
+        task.start(packets::add);
+        task.handleCustomPayload(serverboundPayload(
+                "minecraft:register",
+                "c:register\0c:version".getBytes(java.nio.charset.StandardCharsets.US_ASCII)), packets::add);
+
+        assertThat(task.handleCustomPayload(serverboundPayload("c:version", new byte[] {(byte) 0x80}), packets::add)).isTrue();
+        assertThat(task.tick()).isTrue();
+        assertThat(packets).hasSize(3);
+    }
+
     private static PluginMessageHandler noopHandler() {
         AtomicInteger ignored = new AtomicInteger();
         return (Player player, io.fand.api.messaging.PluginMessageChannel channel, byte[] payload) -> ignored.incrementAndGet();
