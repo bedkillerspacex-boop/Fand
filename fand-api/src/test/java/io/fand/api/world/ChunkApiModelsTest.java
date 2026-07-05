@@ -30,6 +30,15 @@ final class ChunkApiModelsTest {
     }
 
     @Test
+    void chunkChebyshevDistanceDoesNotOverflowAcrossIntegerExtremes() {
+        var negativeExtreme = ChunkPos.of(Integer.MIN_VALUE, 0);
+        var positiveExtreme = ChunkPos.of(Integer.MAX_VALUE, 0);
+
+        assertThat(negativeExtreme.chebyshevDistance(positiveExtreme)).isEqualTo(Integer.MAX_VALUE);
+        assertThat(positiveExtreme.chebyshevDistance(negativeExtreme)).isEqualTo(Integer.MAX_VALUE);
+    }
+
+    @Test
     void chunkRegionNormalizesAndIteratesInStableOrder() {
         var region = ChunkRegion.of(2, 4, 1, 3);
 

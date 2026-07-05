@@ -43,7 +43,10 @@ public record ChunkPos(int x, int z) {
 
     public int chebyshevDistance(ChunkPos other) {
         java.util.Objects.requireNonNull(other, "other");
-        return Math.max(Math.abs(x - other.x), Math.abs(z - other.z));
+        long dx = Math.abs((long) x - other.x);
+        long dz = Math.abs((long) z - other.z);
+        long distance = Math.max(dx, dz);
+        return distance > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) distance;
     }
 
     public ChunkRegion regionAround(int radius) {
