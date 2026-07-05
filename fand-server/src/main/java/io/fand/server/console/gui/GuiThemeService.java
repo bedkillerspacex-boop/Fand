@@ -69,9 +69,12 @@ public final class GuiThemeService implements AutoCloseable {
 
     /** Advances to the next theme and notifies listeners. Returns the new theme. */
     public GuiTheme cycle() {
+        if (closed) {
+            return current;
+        }
         var next = current.next();
         select(next);
-        return next;
+        return current;
     }
 
     /**

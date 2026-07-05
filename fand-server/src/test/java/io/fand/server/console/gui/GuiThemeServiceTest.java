@@ -66,6 +66,16 @@ class GuiThemeServiceTest {
     }
 
     @Test
+    void cycleAfterCloseReportsUnchangedTheme() {
+        var service = new GuiThemeService(GuiTheme.DARK);
+
+        service.close();
+
+        assertThat(service.cycle()).isEqualTo(GuiTheme.DARK);
+        assertThat(service.current()).isEqualTo(GuiTheme.DARK);
+    }
+
+    @Test
     void graphLineColorScalesWithBarHeightAndClamps() {
         var service = new GuiThemeService(GuiTheme.DARK);
         var dim = service.graphLineColor(0);
