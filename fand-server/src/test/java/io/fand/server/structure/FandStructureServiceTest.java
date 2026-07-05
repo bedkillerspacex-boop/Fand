@@ -224,6 +224,17 @@ final class FandStructureServiceTest {
     }
 
     @Test
+    void autoFormatReadsSnbtWithLeadingWhitespace() throws Exception {
+        var snbt = invokeWriteTag(newBaseVanilla(), io.fand.api.structure.StructureFormat.VANILLA_SNBT);
+        var data = ("\n  " + new String(snbt, StandardCharsets.UTF_8)).getBytes(StandardCharsets.UTF_8);
+
+        var vanilla = invokeReadTag(data, io.fand.api.structure.StructureFormat.AUTO);
+
+        assertThat(vanilla.getListOrEmpty("size").getIntOr(0, 0)).isEqualTo(1);
+        assertThat(vanilla.getListOrEmpty("blocks")).hasSize(1);
+    }
+
+    @Test
     void bluImportAcceptsLegacyBedrockOnlyArchive() throws Exception {
         var json = """
                 {

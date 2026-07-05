@@ -660,7 +660,8 @@ public final class FandStructureService implements StructureService {
         if (isBlu(data)) {
             return StructureFormat.BLU;
         }
-        if (data.length > 0 && (data[0] == '{' || data[0] == '[')) {
+        int firstContent = firstNonWhitespaceByte(data);
+        if (firstContent >= 0 && (data[firstContent] == '{' || data[firstContent] == '[')) {
             return StructureFormat.VANILLA_SNBT;
         }
         try {
@@ -674,6 +675,20 @@ public final class FandStructureService implements StructureService {
         } catch (IOException ignored) {
         }
         return StructureFormat.VANILLA_NBT;
+    }
+
+    private static int firstNonWhitespaceByte(byte[] data) {
+        int index = 0;
+        if (data.length >= 3
+                && (data[0] & 0xFF) == 0xEF
+                && (data[1] & 0xFF) == 0xBB
+                && (data[2] & 0xFF) == 0xBF) {
+            index = 3;
+        }
+        while (index < data.length && Character.isWhitespace((char) (data[index] & 0xFF))) {
+            index++;
+        }
+        return index < data.length ? index : -1;
     }
 
     private static byte[] writeBlu(CompoundTag tag) throws IOException {
