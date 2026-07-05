@@ -74,7 +74,7 @@ public final class PluginStructureService implements StructureService {
         return tracker.track(delegate.registerStructureSet(new CustomStructureSet(
                 scopedKey(structureSet.key()),
                 structureSet.structures().stream()
-                        .map(entry -> new io.fand.api.structure.StructureSetEntry(scopedKey(entry.structure()), entry.weight()))
+                        .map(entry -> new io.fand.api.structure.StructureSetEntry(scopedStructureReferenceKey(entry.structure()), entry.weight()))
                         .toList(),
                 structureSet.placement())));
     }
@@ -116,7 +116,7 @@ public final class PluginStructureService implements StructureService {
 
     @Override
     public CompletableFuture<Optional<Location>> locate(Key structure, Location origin, int radius) {
-        return delegate.locate(scopedKey(structure), origin, radius);
+        return delegate.locate(scopedStructureReferenceKey(structure), origin, radius);
     }
 
     private Key scopedKey(Key key) {
@@ -128,6 +128,14 @@ public final class PluginStructureService implements StructureService {
     }
 
     private Key scopedTemplateKey(Key key) {
+        Objects.requireNonNull(key, "key");
+        if ("minecraft".equals(key.namespace()) || namespace.equals(key.namespace())) {
+            return key;
+        }
+        return Key.key(namespace, key.value());
+    }
+
+    private Key scopedStructureReferenceKey(Key key) {
         Objects.requireNonNull(key, "key");
         if ("minecraft".equals(key.namespace()) || namespace.equals(key.namespace())) {
             return key;
