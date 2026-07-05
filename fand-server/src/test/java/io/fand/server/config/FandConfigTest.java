@@ -531,6 +531,20 @@ final class FandConfigTest {
     }
 
     @Test
+    void rejectsNonFiniteNumericValues() throws Exception {
+        var path = tempDir.resolve("fand.yml");
+        Files.writeString(path, """
+                scheduler:
+                  asyncThreads: .nan
+                """);
+
+        assertThatThrownBy(() -> FandConfig.load(path))
+                .isInstanceOf(ConfigException.class)
+                .hasMessageContaining("scheduler.asyncThreads")
+                .hasMessageContaining("finite number");
+    }
+
+    @Test
     void rejectsVelocityForwardingWithoutSecret() throws Exception {
         var path = tempDir.resolve("fand.yml");
         Files.writeString(path, """

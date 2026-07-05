@@ -113,7 +113,11 @@ public final class YamlConfigLoader<T> {
 
     private static java.math.BigDecimal toNumber(Object rawValue, String path) {
         if (rawValue instanceof Number value) {
-            return new java.math.BigDecimal(value.toString());
+            try {
+                return new java.math.BigDecimal(value.toString());
+            } catch (NumberFormatException invalidNumber) {
+                throw new ConfigException(path + " must be a finite number", invalidNumber);
+            }
         }
         throw new ConfigException(path + " must be a number");
     }
