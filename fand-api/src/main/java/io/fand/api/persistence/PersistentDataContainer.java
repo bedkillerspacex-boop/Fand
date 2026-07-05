@@ -20,6 +20,11 @@ public record PersistentDataContainer(JsonObject values) {
         values = values == null ? new JsonObject() : values.deepCopy();
     }
 
+    @Override
+    public JsonObject values() {
+        return values.deepCopy();
+    }
+
     public boolean empty() {
         return values.size() == 0;
     }
